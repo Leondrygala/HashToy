@@ -1,0 +1,6 @@
+[package]
+name = "hash"
+version = "0.1.0"
+authors = ["Leon Drygala <leon.drygala1@cba.com.au>"]
+
+[dependencies]
