@@ -12,18 +12,16 @@ fn main() {
     println!("Assertions passed!");
 }
 
-
-
 mod my_hash_map {
 use std::option::Option;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 
-    pub struct MyHashMap<K: Clone + Hash, V: Clone> {
-        store: [Option<(K, V)>; 31],
+    pub struct MyHashMap<K: Clone + Hash + PartialEq, V: Clone> {
+        store: [Vec<(K, V)>; 3],
     }
 
-    impl<K: Clone + Hash, V: Clone> MyHashMap<K, V> {
+    impl<K: Clone + Hash + PartialEq, V: Clone> MyHashMap<K, V> {
         pub fn new() -> MyHashMap<K, V> {
             return MyHashMap { store: Default::default() };
         }
@@ -31,33 +29,39 @@ use std::collections::hash_map::DefaultHasher;
         pub fn len(&self) -> usize {
             return self.store.iter().fold(
                 0,
-                //|count, pair| pair.map_or(count, |_| count) 
-                |count, pair| match pair {
-                    Some(_) => count + 1,
-                    None => count
-                }
+                |count, items| count + items.len()
             );
         }
 
         pub fn insert(&self, key: K, val: V) -> MyHashMap<K, V> {
-            let i = self.hash_key(&key);
+            let i = self.hash_to_bucket(&key);
             return self.insert_at(key, val, i);
         }
 
         pub fn get(&self, key: &K) -> Option<V> {
-            return self.store[self.hash_key(key)].clone().map(|p| p.1);
+            return self.store[self.hash_to_bucket(key)].iter().find_map(
+                |(k,v)| if k == key { 
+                    Some(v.clone()) 
+                } else {
+                    None
+                }
+            );
         }
 
-        fn hash_key(&self, key: &K) -> usize {
+        fn hash_to_bucket(&self, key: &K) -> usize {
+            let hash = MyHashMap::<K, V>::hash_key(key);
+            return hash.checked_rem(self.store.len() as u64).unwrap() as usize;
+        }
+
+        fn hash_key(key: &K) -> u64 {
             let mut s = DefaultHasher::new();
             key.hash(&mut s);
-            let hash = s.finish();
-            return hash.checked_rem(self.store.len() as u64).unwrap() as usize;
+            return s.finish();
         }
 
         fn insert_at(& self, _key: K, _val: V, i: usize) -> MyHashMap<K, V> {
             let mut new_store = self.store.clone();
-            new_store[i] = Some((_key, _val));
+            new_store[i].push((_key, _val));
             return MyHashMap { store: new_store, };
         }
     }
@@ -84,7 +88,7 @@ use my_hash_map::MyHashMap as HashMap;
     }
 
     #[test]
-    fn insert_and_get3() {
+    fn insert_3() {
         let mut my_map: HashMap<String, String> = HashMap::new();
         let my_key = "my key".to_string();
         let my_val = "Hello, world!".to_string();
@@ -93,6 +97,7 @@ use my_hash_map::MyHashMap as HashMap;
         my_map = my_map.insert("key3".to_string(), "val3".to_string());
         let act_result = my_map.get(&my_key);
         assert_eq!(Some(my_val), act_result);
+        assert_eq!(3, my_map.len());
     }
 
     #[test]
@@ -116,5 +121,17 @@ use my_hash_map::MyHashMap as HashMap;
         let my_val = "Hello, world!".to_string();
         my_map = my_map.insert(my_key, my_val);
         assert_eq!(1, my_map.len());
+    }
+
+    #[test]
+    fn update_value() {
+        let mut my_map = HashMap::new();
+        let my_key = "my key".to_string();
+        let my_val1 = "Hello, world!".to_string();
+        let my_val2 = "New Value!".to_string();
+        my_map = my_map.insert(my_key.clone(), my_val1.clone());
+        my_map = my_map.insert(my_key.clone(), my_val2.clone());
+        assert_eq!(1, my_map.len());
+        assert_eq!(my_map.get(&my_key), Some(my_val2));
     }
 }
