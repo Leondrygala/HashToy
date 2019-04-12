@@ -59,9 +59,14 @@ use std::collections::hash_map::DefaultHasher;
             return s.finish();
         }
 
-        fn insert_at(& self, _key: K, _val: V, i: usize) -> MyHashMap<K, V> {
-            let mut new_store = self.store.clone();
-            new_store[i].push((_key, _val));
+        fn insert_at(& self, key: K, val: V, i: usize) -> MyHashMap<K, V> {
+            let mut new_store: [Vec<(K, V)>; 3] = self.store.clone();
+            new_store[i] = new_store[i]
+                .iter()
+                .cloned()
+                .filter(|(k, _v)| *k != key)
+                .collect::<Vec<_>>();
+            new_store[i].push((key, val)); // can be improved
             return MyHashMap { store: new_store, };
         }
     }
