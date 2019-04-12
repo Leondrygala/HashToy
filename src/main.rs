@@ -18,10 +18,21 @@ use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 
     pub struct MyHashMap<K: Clone + Hash + PartialEq, V: Clone> {
-        store: [Vec<(K, V)>; 3],
+        store: [HashEntry<K,V>; 3]
+    }
+
+    pub enum HashEntry<K: Clone + Hash + PartialEq, V: Clone> {
+        Entry(Option<(K, V)>),
+        Clash(Box<MyHashMap<K, V>>),
+    }
+
+    impl<K: Clone + Hash + PartialEq, V: Clone> Default for HashEntry<K, V> {
+        fn default() -> Self { HashEntry::Entry(None) }
     }
 
     impl<K: Clone + Hash + PartialEq, V: Clone> MyHashMap<K, V> {
+
+
         pub fn new() -> MyHashMap<K, V> {
             return MyHashMap { store: Default::default() };
         }
@@ -29,27 +40,31 @@ use std::collections::hash_map::DefaultHasher;
         pub fn len(&self) -> usize {
             return self.store.iter().fold(
                 0,
-                |count, items| count + items.len()
-            );
-        }
-
-        pub fn insert(&self, key: K, val: V) -> MyHashMap<K, V> {
-            let i = self.hash_to_bucket(&key);
-            return self.insert_at(key, val, i);
-        }
-
-        pub fn get(&self, key: &K) -> Option<V> {
-            return self.store[self.hash_to_bucket(key)].iter().find_map(
-                |(k,v)| if k == key { 
-                    Some(v.clone()) 
-                } else {
-                    None
+                |count, entries| count + match entries {
+                    HashEntry::Entry(Some(_)) => 1,
+                    HashEntry::Entry(None) => 0,
+                    HashEntry::Clash(map) => map.len(),
                 }
             );
         }
 
-        fn hash_to_bucket(&self, key: &K) -> usize {
-            let hash = MyHashMap::<K, V>::hash_key(key);
+        pub fn insert(&self, key: K, val: V) -> MyHashMap<K, V> {
+            return self.attempt_insert(key, val, 0);
+        }
+
+        pub fn get(&self, key: &K) -> Option<V> {
+            return self.attempt_get(key, 0);
+        }
+
+        pub fn attempt_get(&self, key: &K, atmpt: u64) -> Option<V> {
+            return match self.store[self.hash_to_bucket(key, atmpt)] {
+                HashEntry::Entry(entry) => entry.map(|p| p.1),
+                HashEntry::Clash(map) => map.attempt_get(key, atmpt + 1),
+            }
+        }
+
+        fn hash_to_bucket(&self, key: &K, salt: u64) -> usize {
+            let hash = MyHashMap::<K, V>::hash_key(key) + salt;
             return hash.checked_rem(self.store.len() as u64).unwrap() as usize;
         }
 
@@ -59,16 +74,28 @@ use std::collections::hash_map::DefaultHasher;
             return s.finish();
         }
 
-        fn insert_at(& self, key: K, val: V, i: usize) -> MyHashMap<K, V> {
-            let mut new_store: [Vec<(K, V)>; 3] = self.store.clone();
-            new_store[i] = new_store[i]
-                .iter()
-                .cloned()
-                .filter(|(k, _v)| *k != key)
-                .collect::<Vec<_>>();
-            new_store[i].push((key, val)); // can be improved
-            return MyHashMap { store: new_store, };
+        fn attempt_insert(& self, key: K, val: V, atmpt: u64) -> MyHashMap<K, V> {
+            let i = self.hash_to_bucket(&key, atmpt);
+            let mut new_store: [HashEntry<K, V>; 3] = self.store.clone();
+            match self.store[i] {
+                HashEntry::Clash(map) => map.attempt_insert(key, val, atmpt + 1),
+                HashEntry::Entry(None) => { 
+                    new_store[i] = HashEntry::Entry(Some((key, val)));
+                    MyHashMap { store: new_store }
+                },
+                HashEntry::Entry(Some((old_key, old_val))) => {
+                    // check if key is the same
+                        new_store[i] = HashEntry::Entry(Some((key, val)));
+                    // otherwise, make a new hashmap
+                        let mut new_map_entry: MyHashMap<K, V> = MyHashMap::new();
+                        new_map_entry.attempt_insert(old_key, old_val, 0); 
+                        new_map_entry.attempt_insert(key, val, 1);// or should tthis be atmpt? There might be some weird behaviour here
+                        new_store[i] = HashEntry::Clash(Box::new(new_map_entry));
+                    MyHashMap { store: new_store }
+                },
+            }
         }
+
     }
 }
 
