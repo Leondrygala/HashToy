@@ -17,10 +17,12 @@ use std::option::Option;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 
+    #[derive(Clone)]
     pub struct MyHashMap<K: Clone + Hash + PartialEq, V: Clone> {
         store: [HashEntry<K,V>; 3]
     }
 
+    #[derive(Clone)]
     pub enum HashEntry<K: Clone + Hash + PartialEq, V: Clone> {
         Entry(Option<(K, V)>),
         Clash(Box<MyHashMap<K, V>>),
@@ -31,8 +33,6 @@ use std::collections::hash_map::DefaultHasher;
     }
 
     impl<K: Clone + Hash + PartialEq, V: Clone> MyHashMap<K, V> {
-
-
         pub fn new() -> MyHashMap<K, V> {
             return MyHashMap { store: Default::default() };
         }
@@ -48,49 +48,53 @@ use std::collections::hash_map::DefaultHasher;
             );
         }
 
-        pub fn insert(&self, key: K, val: V) -> MyHashMap<K, V> {
-            return self.attempt_insert(key, val, 0);
-        }
 
         pub fn get(&self, key: &K) -> Option<V> {
             return self.attempt_get(key, 0);
         }
 
         pub fn attempt_get(&self, key: &K, atmpt: u64) -> Option<V> {
-            return match self.store[self.hash_to_bucket(key, atmpt)] {
+            return match self.store[self.hash_to_bucket(key, atmpt)].clone() { // Do I really have to clone the whole thing?
                 HashEntry::Entry(entry) => entry.map(|p| p.1),
                 HashEntry::Clash(map) => map.attempt_get(key, atmpt + 1),
             }
         }
 
-        fn hash_to_bucket(&self, key: &K, salt: u64) -> usize {
-            let hash = MyHashMap::<K, V>::hash_key(key) + salt;
+        fn hash_to_bucket(&self, key: &K, atmpt: u64) -> usize {
+            let hash = MyHashMap::<K, V>::hash_key(key, atmpt + 1);
             return hash.checked_rem(self.store.len() as u64).unwrap() as usize;
         }
 
-        fn hash_key(key: &K) -> u64 {
+        fn hash_key(key: &K, repetitions: u64) -> u64 {
             let mut s = DefaultHasher::new();
-            key.hash(&mut s);
+            for _ in 0..repetitions {
+                key.hash(&mut s);
+            }
             return s.finish();
+        }
+
+        pub fn insert(&self, key: K, val: V) -> MyHashMap<K, V> {
+            return self.attempt_insert(key, val, 0);
         }
 
         fn attempt_insert(& self, key: K, val: V, atmpt: u64) -> MyHashMap<K, V> {
             let i = self.hash_to_bucket(&key, atmpt);
             let mut new_store: [HashEntry<K, V>; 3] = self.store.clone();
-            match self.store[i] {
-                HashEntry::Clash(map) => map.attempt_insert(key, val, atmpt + 1),
+            return match self.store[i] {
+                HashEntry::Clash(ref map) => map.attempt_insert(key, val, atmpt + 1),
                 HashEntry::Entry(None) => { 
                     new_store[i] = HashEntry::Entry(Some((key, val)));
-                    MyHashMap { store: new_store }
+                     MyHashMap { store: new_store }
                 },
-                HashEntry::Entry(Some((old_key, old_val))) => {
-                    // check if key is the same
-                        new_store[i] = HashEntry::Entry(Some((key, val)));
-                    // otherwise, make a new hashmap
+                HashEntry::Entry(Some((ref old_key, ref old_val))) => {
+                    new_store[i] = if old_key == &key {
+                        HashEntry::Entry(Some((key, val)))
+                    } else {
                         let mut new_map_entry: MyHashMap<K, V> = MyHashMap::new();
-                        new_map_entry.attempt_insert(old_key, old_val, 0); 
-                        new_map_entry.attempt_insert(key, val, 1);// or should tthis be atmpt? There might be some weird behaviour here
-                        new_store[i] = HashEntry::Clash(Box::new(new_map_entry));
+                        new_map_entry = new_map_entry.attempt_insert(old_key.clone(), old_val.clone(), atmpt + 1); 
+                        new_map_entry = new_map_entry.attempt_insert(key, val, atmpt + 1); // These actually have a 1/store.len chance of clashing again
+                        HashEntry::Clash(Box::new(new_map_entry))
+                    };
                     MyHashMap { store: new_store }
                 },
             }
@@ -110,26 +114,36 @@ use my_hash_map::MyHashMap as HashMap;
     }
 
     #[test]
-    fn insert_and_get() {
+    fn insert_1() {
         let mut my_map: HashMap<String, String> = HashMap::new();
         let my_key = "my key".to_string();
         let my_val = "Hello, world!".to_string();
         my_map = my_map.insert(my_key.clone(), my_val.clone());
         let act_result = my_map.get(&my_key);
-        assert_eq!(Some(my_val), act_result);
+        assert_eq!(act_result, Some(my_val));
+        assert_eq!(my_map.len(), 1);
     }
 
     #[test]
     fn insert_3() {
         let mut my_map: HashMap<String, String> = HashMap::new();
-        let my_key = "my key".to_string();
-        let my_val = "Hello, world!".to_string();
-        my_map = my_map.insert(my_key.clone(), my_val.clone());
+        my_map = my_map.insert("my key".to_string(), "my val".to_string());
         my_map = my_map.insert("key2".to_string(), "val2".to_string());
         my_map = my_map.insert("key3".to_string(), "val3".to_string());
-        let act_result = my_map.get(&my_key);
-        assert_eq!(Some(my_val), act_result);
-        assert_eq!(3, my_map.len());
+        assert_eq!(my_map.len(), 3);
+        assert_eq!(my_map.get(&"my key".to_string()), Some("my val".to_string()));
+    }
+
+    #[test]
+    fn insert_n() {
+        let n = 4;
+        let mut my_map: HashMap<String, String> = HashMap::new();
+        my_map = my_map.insert("my key".to_string(), "my val".to_string());
+        for i in 1..n {
+            my_map = my_map.insert(format!("{}{}", "key", i).to_string(), format!("{}{}", "val", i).to_string());
+        }
+        assert_eq!(my_map.get(&"my key".to_string()), Some("my val".to_string()));
+        assert_eq!(my_map.len(), n);
     }
 
     #[test]
@@ -139,20 +153,10 @@ use my_hash_map::MyHashMap as HashMap;
         assert_eq!(act_result, None);
     }
 
-    // Length 
     #[test]
     fn inital_len_0() {
         let my_map = get_new_map();
-        assert_eq!(0, my_map.len());
-    }
-    
-    #[test]
-    fn len_1() {
-        let mut my_map = HashMap::new();
-        let my_key = "my key".to_string();
-        let my_val = "Hello, world!".to_string();
-        my_map = my_map.insert(my_key, my_val);
-        assert_eq!(1, my_map.len());
+        assert_eq!(my_map.len(), 0);
     }
 
     #[test]
@@ -163,7 +167,7 @@ use my_hash_map::MyHashMap as HashMap;
         let my_val2 = "New Value!".to_string();
         my_map = my_map.insert(my_key.clone(), my_val1.clone());
         my_map = my_map.insert(my_key.clone(), my_val2.clone());
-        assert_eq!(1, my_map.len());
+        assert_eq!(my_map.len(), 1);
         assert_eq!(my_map.get(&my_key), Some(my_val2));
     }
 }
