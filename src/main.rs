@@ -9,6 +9,7 @@ fn main() {
     my_map = my_map.insert(my_key.clone(), my_val.clone());
     assert_eq!(my_map.len(), 1);
     assert_eq!(my_map.get(&my_key), Some(my_val));
+    println!("my map: {}", my_map.to_string());
     println!("Assertions passed!");
 }
 
@@ -17,9 +18,11 @@ use std::option::Option;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 
+const SIZE: usize = 4;
+
     #[derive(Clone)]
     pub struct MyHashMap<K: Clone + Hash + PartialEq, V: Clone> {
-        store: [HashEntry<K,V>; 3]
+        store: [HashEntry<K,V>; SIZE]
     }
 
     #[derive(Clone)]
@@ -28,13 +31,42 @@ use std::collections::hash_map::DefaultHasher;
         Clash(Box<MyHashMap<K, V>>),
     }
 
-    impl<K: Clone + Hash + PartialEq, V: Clone> Default for HashEntry<K, V> {
+    impl<K: Clone + Hash + PartialEq + ToString, V: Clone + ToString> Default for HashEntry<K, V> {
         fn default() -> Self { HashEntry::Entry(None) }
     }
 
-    impl<K: Clone + Hash + PartialEq, V: Clone> MyHashMap<K, V> {
+    impl<K: Clone + Hash + PartialEq + ToString, V: Clone + ToString> MyHashMap<K, V> {
+
         pub fn new() -> MyHashMap<K, V> {
             return MyHashMap { store: Default::default() };
+        }
+
+        pub fn to_string(&self) -> String {
+            return self.store.iter().fold(
+                "[\n".to_string(),
+                |string, entries| format!(
+                    "{}{}, ",
+                    string,
+                    match entries {
+                        HashEntry::Entry(Some((k, v))) => format!("Some({}, {})", k.to_string(), v.to_string()),
+                        HashEntry::Entry(None) => "None".to_string(),
+                        HashEntry::Clash(map) => map.to_string(),
+                        //    |ch|
+                        //        if ch == '\n' {
+                        //            ['\n', '\t'].iter()//"\n\t"
+                        //        } else { 
+                        //            ['.'].iter()//"\n\t"
+                        //        }
+                        //).collect::<String>()
+                        //)
+                        //HashEntry::Clash(map) => map.to_string().chars().flat_map(|ch| match ch.clone() {
+                        //    '\n' => "\n\t".chars(),
+                        //    c => c.clone().to_string().chars()}
+                        //).collect::<String>()
+                    }
+                )
+            ) + "\n]";
+
         }
 
         pub fn len(&self) -> usize {
@@ -47,7 +79,6 @@ use std::collections::hash_map::DefaultHasher;
                 }
             );
         }
-
 
         pub fn get(&self, key: &K) -> Option<V> {
             return self.attempt_get(key, 0);
@@ -74,31 +105,35 @@ use std::collections::hash_map::DefaultHasher;
         }
 
         pub fn insert(&self, key: K, val: V) -> MyHashMap<K, V> {
-            return self.attempt_insert(key, val, 0);
+            self.attempt_insert(key, val, 0)
         }
 
         fn attempt_insert(& self, key: K, val: V, atmpt: u64) -> MyHashMap<K, V> {
             let i = self.hash_to_bucket(&key, atmpt);
-            let mut new_store: [HashEntry<K, V>; 3] = self.store.clone();
-            return match self.store[i] {
-                HashEntry::Clash(ref map) => map.attempt_insert(key, val, atmpt + 1),
+            let mut new_store: [HashEntry<K, V>; SIZE] = self.store.clone();
+            new_store[i] = match self.store[i] {
+                HashEntry::Clash(ref map) => { 
+                    HashEntry::Clash(Box::new(map.attempt_insert(key, val, atmpt + 1)))
+                },
                 HashEntry::Entry(None) => { 
-                    new_store[i] = HashEntry::Entry(Some((key, val)));
-                     MyHashMap { store: new_store }
+                    HashEntry::Entry(Some((key, val)))
                 },
                 HashEntry::Entry(Some((ref old_key, ref old_val))) => {
-                    new_store[i] = if old_key == &key {
+                    if old_key == &key {
                         HashEntry::Entry(Some((key, val)))
                     } else {
                         let mut new_map_entry: MyHashMap<K, V> = MyHashMap::new();
-                        new_map_entry = new_map_entry.attempt_insert(old_key.clone(), old_val.clone(), atmpt + 1); 
-                        new_map_entry = new_map_entry.attempt_insert(key, val, atmpt + 1); // These actually have a 1/store.len chance of clashing again
-                        HashEntry::Clash(Box::new(new_map_entry))
-                    };
-                    MyHashMap { store: new_store }
+                        HashEntry::Clash(Box::new(new_map_entry
+                          .attempt_insert(old_key.clone(), old_val.clone(), atmpt + 1)
+                          .attempt_insert(key, val, atmpt + 1) // These actually have a 1/store.len chance of clashing again
+                        ))
+                    }
                 },
-            }
+            };
+            MyHashMap { store: new_store }
         }
+
+
 
     }
 }
@@ -127,23 +162,24 @@ use my_hash_map::MyHashMap as HashMap;
     #[test]
     fn insert_3() {
         let mut my_map: HashMap<String, String> = HashMap::new();
-        my_map = my_map.insert("my key".to_string(), "my val".to_string());
-        my_map = my_map.insert("key2".to_string(), "val2".to_string());
-        my_map = my_map.insert("key3".to_string(), "val3".to_string());
+        my_map = my_map.insert("my key".to_string(), "my val".to_string())
+                       .insert("key2".to_string(), "val2".to_string())
+                       .insert("key3".to_string(), "val3".to_string());
         assert_eq!(my_map.len(), 3);
         assert_eq!(my_map.get(&"my key".to_string()), Some("my val".to_string()));
     }
 
     #[test]
     fn insert_n() {
-        let n = 4;
+        let n = 50;
         let mut my_map: HashMap<String, String> = HashMap::new();
-        my_map = my_map.insert("my key".to_string(), "my val".to_string());
-        for i in 1..n {
+        for i in 1..n+1 {
             my_map = my_map.insert(format!("{}{}", "key", i).to_string(), format!("{}{}", "val", i).to_string());
+            println!("Finished iteration {}, map is now: {}", i, my_map.to_string());
+            assert_eq!(my_map.get(&format!("{}{}", "key", i).to_string()), Some(format!("{}{}", "val", i).to_string()));
+            assert_eq!(my_map.len(), i);
         }
-        assert_eq!(my_map.get(&"my key".to_string()), Some("my val".to_string()));
-        assert_eq!(my_map.len(), n);
+        assert_eq!(my_map.get(&"key1".to_string()), Some("val1".to_string()));
     }
 
     #[test]
