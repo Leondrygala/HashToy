@@ -1,6 +1,6 @@
 # HashToy
 
-Current implementation uses a Recursive MyHashMap, solving bucket clashses
+Current implementation uses a Recursive MyHashMap, solving bucket clashes
 with new copies of MyHashMap
 
 ## Running and Testing ##
