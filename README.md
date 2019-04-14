@@ -3,6 +3,13 @@
 Current implementation uses a Recursive MyHashMap, solving bucket clashses
 with new copies of MyHashMap
 
+## Running and Testing ##
+
+* Docker: 
+   * `make run test`
+* Cargo
+   * `cargo run` or `cargo test`
+
 ### Done ###
 
 * new

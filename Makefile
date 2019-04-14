@@ -4,8 +4,10 @@ all: test run
 
 .PHONY: test
 test:
-	cargo test
+	docker run -v $(PWD):/work rust:1.34 \
+		cargo test --manifest-path /work/Cargo.toml
 
 .PHONY: run
 run: 
-	cargo run
+	docker run -v $(PWD):/work rust:1.34 \
+		cargo run --manifest-path /work/Cargo.toml
