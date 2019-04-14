@@ -43,30 +43,18 @@ const SIZE: usize = 4;
 
         pub fn to_string(&self) -> String {
             return self.store.iter().fold(
-                "[\n".to_string(),
-                |string, entries| format!(
-                    "{}{}, ",
-                    string,
-                    match entries {
+                "[".to_string(),
+                |string, entries| 
+                    string + "\n\t" + 
+                    &match entries {
                         HashEntry::Entry(Some((k, v))) => format!("Some({}, {})", k.to_string(), v.to_string()),
                         HashEntry::Entry(None) => "None".to_string(),
-                        HashEntry::Clash(map) => map.to_string(),
-                        //    |ch|
-                        //        if ch == '\n' {
-                        //            ['\n', '\t'].iter()//"\n\t"
-                        //        } else { 
-                        //            ['.'].iter()//"\n\t"
-                        //        }
-                        //).collect::<String>()
-                        //)
-                        //HashEntry::Clash(map) => map.to_string().chars().flat_map(|ch| match ch.clone() {
-                        //    '\n' => "\n\t".chars(),
-                        //    c => c.clone().to_string().chars()}
-                        //).collect::<String>()
+                        HashEntry::Clash(map) => map.to_string().chars().flat_map(|ch| match ch {
+                            '\n' => vec!['\n', '\t'].into_iter(),
+                            c    => vec![c].into_iter()}
+                        ).collect::<String>()
                     }
-                )
             ) + "\n]";
-
         }
 
         pub fn len(&self) -> usize {
@@ -175,11 +163,12 @@ use my_hash_map::MyHashMap as HashMap;
         let mut my_map: HashMap<String, String> = HashMap::new();
         for i in 1..n+1 {
             my_map = my_map.insert(format!("{}{}", "key", i).to_string(), format!("{}{}", "val", i).to_string());
-            println!("Finished iteration {}, map is now: {}", i, my_map.to_string());
             assert_eq!(my_map.get(&format!("{}{}", "key", i).to_string()), Some(format!("{}{}", "val", i).to_string()));
             assert_eq!(my_map.len(), i);
         }
-        assert_eq!(my_map.get(&"key1".to_string()), Some("val1".to_string()));
+        println!("Finished iteration {}, map is now: {}", n, my_map.to_string());
+        //assert_eq!(1,2);
+        assert_eq!(my_map.get(&"key14".to_string()), Some("val14".to_string()));
     }
 
     #[test]
