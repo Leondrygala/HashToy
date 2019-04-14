@@ -58,8 +58,8 @@ pub mod my_hash_map {
         }
 
         pub fn attempt_get(&self, key: &K, atmpt: u64) -> Option<V> {
-            return match self.store[self.hash_to_bucket(key, atmpt)].clone() { // Do I really have to clone the whole thing?
-                HashEntry::Entry(entry) => entry.map(|p| p.1),
+            return match &self.store[self.hash_to_bucket(key, atmpt)] {
+                HashEntry::Entry(entry) => entry.as_ref().map(|p| p.1.clone()),
                 HashEntry::Clash(map) => map.attempt_get(key, atmpt + 1),
             }
         }
