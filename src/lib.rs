@@ -110,7 +110,7 @@ pub mod my_hash_map {
 
 #[cfg(test)]
 mod tests {
-use my_hash_map::my_hash_map::MyHashMap as HashMap;
+use my_hash_map::MyHashMap as HashMap;
 
     fn get_new_map() -> HashMap<String, String>{
         let map: HashMap<String, String> = HashMap::new();
