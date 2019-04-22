@@ -16,11 +16,17 @@ pub mod my_hash_map {
         Clash(Box<MyHashMap<K, V>>),
     }
 
-    impl<K: Clone + Hash + PartialEq + ToString, V: Clone + ToString> Default for HashEntry<K, V> {
+    impl<
+        K: Clone + Hash + PartialEq + ToString,
+        V: Clone + ToString
+    > Default for HashEntry<K, V> {
         fn default() -> Self { HashEntry::Entry(None) }
     }
 
-    impl<K: Clone + Hash + PartialEq + ToString, V: Clone + ToString> MyHashMap<K, V> {
+    impl<
+        K: Clone + Hash + PartialEq + ToString,
+        V: Clone + ToString
+    > MyHashMap<K, V> {
 
         pub fn new() -> MyHashMap<K, V> {
             return MyHashMap { store: Default::default() };
@@ -32,12 +38,18 @@ pub mod my_hash_map {
                 |string, entries| 
                     string + "\n\t" + 
                     &match entries {
-                        HashEntry::Entry(Some((k, v))) => format!("Some({}, {})", k.to_string(), v.to_string()),
+                        HashEntry::Entry(Some((k, v))) =>
+                            format!(
+                                "Some({}, {})",
+                                k.to_string(),
+                                v.to_string()
+                            ),
                         HashEntry::Entry(None) => "None".to_string(),
-                        HashEntry::Clash(map) => map.to_string().chars().flat_map(|ch| match ch {
-                            '\n' => vec!['\n', '\t'].into_iter(),
-                            c    => vec![c].into_iter()}
-                        ).collect::<String>()
+                        HashEntry::Clash(map) =>
+                            map.to_string().chars().flat_map(|ch| match ch {
+                                '\n' => vec!['\n', '\t'].into_iter(),
+                                c    => vec![c].into_iter()}
+                            ).collect::<String>()
                     }
             ) + "\n]";
         }
@@ -81,13 +93,16 @@ pub mod my_hash_map {
             self.attempt_insert(key, val, 0)
         }
 
-        fn attempt_insert(& self, key: K, val: V, atmpt: u64) -> MyHashMap<K, V> {
+        fn attempt_insert(& self, key: K, val: V, atmpt: u64)
+            -> MyHashMap<K, V> {
             let i = self.hash_to_bucket(&key, atmpt);
             let mut new_store: [HashEntry<K, V>; SIZE] = self.store.clone();
             new_store[i] = match self.store[i] {
-                HashEntry::Clash(ref map) => { 
-                    HashEntry::Clash(Box::new(map.attempt_insert(key, val, atmpt + 1)))
-                },
+                HashEntry::Clash(ref map) =>
+                    HashEntry::Clash(Box::new(
+                        map.attempt_insert(key, val, atmpt + 1)
+                    ))
+                ,
                 HashEntry::Entry(None) => { 
                     HashEntry::Entry(Some((key, val)))
                 },
@@ -95,10 +110,16 @@ pub mod my_hash_map {
                     if old_key == &key {
                         HashEntry::Entry(Some((key, val)))
                     } else {
-                        let mut new_map_entry: MyHashMap<K, V> = MyHashMap::new();
+                        let mut new_map_entry: MyHashMap<K, V> =
+                            MyHashMap::new();
                         HashEntry::Clash(Box::new(new_map_entry
-                          .attempt_insert(old_key.clone(), old_val.clone(), atmpt + 1)
-                          .attempt_insert(key, val, atmpt + 1) // These actually have a 1/store.len chance of clashing again
+                            .attempt_insert(
+                                old_key.clone(),
+                                old_val.clone(),
+                                atmpt + 1
+                            ).attempt_insert(key, val, atmpt + 1)
+                            // Above actually have a 1/store.len chance of
+                            // clashing again
                         ))
                     }
                 },
