@@ -100,7 +100,7 @@ pub mod my_hash_map {
             new_store[i] = match self.store[i] {
                 HashEntry::Clash(ref map) =>
                     HashEntry::Clash(Box::new(
-                            map.attempt_insert(key, val, atmpt + 1)
+                        map.attempt_insert(key, val, atmpt + 1)
                     ))
                 ,
                 HashEntry::Entry(None) => { 
