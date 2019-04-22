@@ -1,6 +1,21 @@
 [package]
-name = "hash"
+name = "hash_toy"
 version = "0.1.0"
 authors = ["Leon Drygala <leon.drygala1@cba.com.au>"]
 
+[lib]
+name = "my_hash_map"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mymain"
+path = "src/bin/main.rs"
+
 [dependencies]
+
+[dev-dependencies]
+criterion = "0.2.11"
+
+[[bench]]
+name = "hash_benchmark"
+harness = false

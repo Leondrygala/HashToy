@@ -1,8 +1,8 @@
-mod my_hash_map;
+extern crate my_hash_map;
+
+use my_hash_map::my_hash_map::MyHashMap as HashMap;
 
 fn main() {
-    use my_hash_map::my_hash_map::MyHashMap as HashMap;
-
     let mut my_map: HashMap<String, String> = HashMap::new();
     assert_eq!(my_map.len(), 0);
     let my_key = "my key".to_string();
