@@ -10,6 +10,13 @@ with new copies of MyHashMap
 * Cargo
    * `cargo run` or `cargo test`
 
+### Benchmark ###
+
+Benchmarks can be run with `make bench` or `cargo bench`.
+
+Current benchmark results are bad! ~1 order of magnitude worse than
+standard library with non-linear scaling!
+
 ### Done ###
 
 * new
