@@ -12,3 +12,10 @@ name = "mymain"
 path = "src/bin/main.rs"
 
 [dependencies]
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "hash_benchmark"
+harness = false
